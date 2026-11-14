@@ -402,6 +402,8 @@
   let bigThreshold = 100 + ((Math.random() * 201) | 0);
   let snackHits = 0;
   let snackThreshold = 10;
+  let combo = 0;
+  let comboAt = -1e9;
 
   /* ---------- sound ---------- */
 
@@ -596,6 +598,8 @@
     score = 0;
     hitsSinceBig = 0;
     snackHits = 0;
+    combo = 0;
+    comboAt = -1e9;
     scoreEl.textContent = '0';
     scoreBox.classList.remove('bump', 'miss');
     void scoreBox.offsetWidth;
@@ -736,9 +740,13 @@
     void scoreBox.offsetWidth;
     scoreBox.classList.add('bump');
 
+    const now = performance.now();
+    combo = now - comboAt < 900 ? combo + 1 : 1;
+    comboAt = now;
+
     const pop = document.createElement('div');
     pop.className = 'pop';
-    pop.textContent = '+1';
+    pop.textContent = '+' + combo;
     pop.style.left = x + 'px';
     pop.style.top  = y + 'px';
     pops.appendChild(pop);
@@ -1031,6 +1039,8 @@
     bigThreshold = 100 + ((Math.random() * 201) | 0);
     snackHits = 0;
     snackThreshold = 10;
+    combo = 0;
+    comboAt = -1e9;
 
     splats.replaceChildren();
     juice.replaceChildren();
