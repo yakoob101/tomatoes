@@ -423,7 +423,7 @@
     return actx;
   }
 
-  function blip(freq, dur, type, vol, when, slideTo) {
+  function blip(freq, dur, type, vol, when, slideTo, atk) {
     if (muted) return;
     const c = ac(); if (!c) return;
     const t0 = c.currentTime + (when || 0);
@@ -432,13 +432,13 @@
     o.frequency.setValueAtTime(freq, t0);
     if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(1, slideTo), t0 + dur);
     g.gain.setValueAtTime(.0001, t0);
-    g.gain.exponentialRampToValueAtTime(vol, t0 + .012);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + (atk == null ? .012 : atk));
     g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
     o.connect(g); g.connect(master);
     o.start(t0); o.stop(t0 + dur + .03);
   }
 
-  function hiss(dur, vol, when, type, freq, freqTo, q) {
+  function hiss(dur, vol, when, type, freq, freqTo, q, atk) {
     if (muted) return;
     const c = ac(); if (!c) return;
     const t0 = c.currentTime + (when || 0);
@@ -451,7 +451,7 @@
     f.Q.value = q == null ? 1 : q;
     const g = c.createGain();
     g.gain.setValueAtTime(.0001, t0);
-    g.gain.exponentialRampToValueAtTime(vol, t0 + .01);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + (atk == null ? .01 : atk));
     g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
     src.connect(f); f.connect(g); g.connect(master);
     src.start(t0); src.stop(t0 + dur + .03);
@@ -475,13 +475,10 @@
     score() {
       blip(680 + Math.min(score, 30) * 12, .07, 'triangle', .06, 0);
     },
-    switch() {
-      blip(760, .07, 'square', .055, 0);
-      blip(1140, .09, 'square', .055, .06);
-    },
-    reset() {
-      blip(900, .28, 'sawtooth', .07, 0, 200);
-      hiss(.2, .06, 0, 'lowpass', 1400, 300, 1);
+    click() {
+      hiss(.018, .24, 0, 'highpass', 3800, 2400, .8, .001);
+      blip(185, .085, 'triangle', .2, 0, 95, .002);
+      blip(1500, .02, 'square', .04, 0, 1000, .001);
     },
     bigThrow() {
       hiss(.7, .14, 0, 'lowpass', 220, 900, 1);
@@ -1000,7 +997,7 @@
       const key = btn.dataset.char;
       if (key === current) return;
       current = key;
-      sfx.switch();
+      sfx.click();
 
       girlEl.classList.toggle('active', key === 'girl');
       boyEl.classList.toggle('active', key === 'boy');
@@ -1027,7 +1024,7 @@
   /* ---------- reset ---------- */
 
   resetBtn.addEventListener('click', () => {
-    sfx.reset();
+    sfx.click();
     score = 0;
     scoreEl.textContent = '0';
     hitsSinceBig = 0;
@@ -1081,12 +1078,13 @@
   const soundBtn = document.getElementById('sound');
 
   soundBtn.addEventListener('click', () => {
+    if (!muted) sfx.click();   // click before muting so it is still audible
     muted = !muted;
+    if (!muted) sfx.click();   // and again right after unmuting
     soundBtn.classList.toggle('off', muted);
     soundBtn.textContent = muted ? '🔇' : '🔊';
     soundBtn.setAttribute('aria-pressed', String(!muted));
     soundBtn.setAttribute('aria-label', muted ? 'Sound off' : 'Sound on');
-    if (!muted) sfx.switch();
   });
 </script>
 </body>
