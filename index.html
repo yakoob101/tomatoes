@@ -67,17 +67,19 @@
   }
   .seg-btn:active{transform:scale(.96)}
 
-  #reset{
+  #reset,#sound{
     font:inherit;font-weight:700;font-size:15px;
     color:#8a6a4c;cursor:pointer;
     background:rgba(255,255,255,.6);
     border:2px solid #fff;border-radius:999px;
     padding:9px 20px;
     box-shadow:0 6px 16px rgba(150,100,50,.13);
-    transition:transform .1s,color .15s,background .15s;
+    transition:transform .1s,color .15s,background .15s,opacity .15s;
   }
-  #reset:hover{color:#b5281d;background:#fff}
-  #reset:active{transform:scale(.96)}
+  #reset:hover,#sound:hover{color:#b5281d;background:#fff}
+  #reset:active,#sound:active{transform:scale(.96)}
+  #sound{padding:9px 12px;font-size:16px;line-height:1;min-width:44px}
+  #sound.off{opacity:.45}
 
   .skin{
     display:flex;align-items:center;gap:9px;
@@ -237,6 +239,7 @@
         <button type="button" class="seg-btn" data-char="boy" aria-pressed="false">Boy</button>
       </div>
       <button type="button" id="reset">Reset</button>
+      <button type="button" id="sound" aria-pressed="true" aria-label="Sound on">🔊</button>
       <label class="skin">
         <span class="skin-tag" aria-hidden="true">Easy</span>
         <input id="skin-tone" type="range" min="0" max="100" value="94" step="1" aria-label="Difficulty">
@@ -400,6 +403,117 @@
   let snackHits = 0;
   let snackThreshold = 10;
 
+  /* ---------- sound ---------- */
+
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  let actx = null, master = null, noiseBuf = null, muted = false;
+
+  function ac() {
+    if (!AudioCtx) return null;
+    if (!actx) {
+      actx = new AudioCtx();
+      master = actx.createGain();
+      master.gain.value = .7;
+      master.connect(actx.destination);
+      noiseBuf = actx.createBuffer(1, actx.sampleRate, actx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  }
+
+  function blip(freq, dur, type, vol, when, slideTo) {
+    if (muted) return;
+    const c = ac(); if (!c) return;
+    const t0 = c.currentTime + (when || 0);
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = type || 'sine';
+    o.frequency.setValueAtTime(freq, t0);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(1, slideTo), t0 + dur);
+    g.gain.setValueAtTime(.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + .012);
+    g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+    o.connect(g); g.connect(master);
+    o.start(t0); o.stop(t0 + dur + .03);
+  }
+
+  function hiss(dur, vol, when, type, freq, freqTo, q) {
+    if (muted) return;
+    const c = ac(); if (!c) return;
+    const t0 = c.currentTime + (when || 0);
+    const src = c.createBufferSource();
+    src.buffer = noiseBuf;
+    const f = c.createBiquadFilter();
+    f.type = type || 'bandpass';
+    f.frequency.setValueAtTime(freq || 1200, t0);
+    if (freqTo) f.frequency.exponentialRampToValueAtTime(Math.max(20, freqTo), t0 + dur);
+    f.Q.value = q == null ? 1 : q;
+    const g = c.createGain();
+    g.gain.setValueAtTime(.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + .01);
+    g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+    src.connect(f); f.connect(g); g.connect(master);
+    src.start(t0); src.stop(t0 + dur + .03);
+  }
+
+  const sfx = {
+    throw() {
+      hiss(.18, .09, 0, 'bandpass', 700, 2600, 1.2);
+      blip(430, .08, 'triangle', .04, 0, 780);
+    },
+    hit() {
+      hiss(.16, .28, 0, 'lowpass', 1100, 220, 1);
+      blip(190, .18, 'sine', .22, 0, 70);
+      hiss(.06, .1, 0, 'bandpass', 2800, 900, 2);
+    },
+    miss() {
+      hiss(.2, .2, 0, 'lowpass', 520, 120, 1);
+      blip(150, .26, 'sine', .22, 0, 55);
+      blip(330, .22, 'sawtooth', .06, .02, 190);
+    },
+    score() {
+      blip(680 + Math.min(score, 30) * 12, .07, 'triangle', .06, 0);
+    },
+    switch() {
+      blip(760, .07, 'square', .055, 0);
+      blip(1140, .09, 'square', .055, .06);
+    },
+    reset() {
+      blip(900, .28, 'sawtooth', .07, 0, 200);
+      hiss(.2, .06, 0, 'lowpass', 1400, 300, 1);
+    },
+    bigThrow() {
+      hiss(.7, .14, 0, 'lowpass', 220, 900, 1);
+      blip(70, .6, 'sine', .16, 0, 130);
+    },
+    bigImpact() {
+      hiss(.9, .4, 0, 'lowpass', 1600, 90, 1);
+      blip(95, .75, 'sine', .34, 0, 32);
+      hiss(.12, .26, 0, 'bandpass', 3200, 1200, 1.5);
+      blip(60, .5, 'triangle', .16, .02, 40);
+    },
+    respawn() {
+      blip(520, .12, 'sine', .07, 0, 780);
+    },
+    grab() {
+      blip(420, .06, 'triangle', .07, 0, 700);
+    },
+    chomp(when) {
+      hiss(.07, .2, when, 'bandpass', 1900, 700, 1.6);
+      blip(150, .09, 'sine', .13, when, 85);
+    },
+    gulp() {
+      blip(220, .18, 'sine', .14, 0, 90);
+    },
+    step(when) {
+      hiss(.05, .1, when, 'lowpass', 420, 160, 1);
+    },
+    slider() {
+      blip(1300, .025, 'sine', .035, 0);
+    }
+  };
+
   /* ---------- input ---------- */
 
   stage.addEventListener('pointerdown', (e) => {
@@ -413,6 +527,8 @@
   /* ---------- throw ---------- */
 
   function toss(x, y, w, h, hit) {
+    sfx.throw();
+
     const sx = w * 0.5 + (Math.random() - 0.5) * 110;
     const sy = h + 60;
 
@@ -468,12 +584,15 @@
 
   function impact(x, y) {
     if (scoreUp(x, y)) return;   // a special sequence took over this hit
+    sfx.hit();
+    sfx.score();
     splat(x, y);
     burst(x, y);
     shake();
   }
 
   function miss(x, y) {
+    sfx.miss();
     splat(x, y);
     burst(x, y);
     shake();
@@ -683,6 +802,7 @@
 
   function bigThrow() {
     busy = true;
+    sfx.bigThrow();
 
     const r  = stage.getBoundingClientRect();
     const cx = r.width / 2;
@@ -708,6 +828,7 @@
   }
 
   function bigImpact(x, y) {
+    sfx.bigImpact();
     flashScreen();
     shake(true);
     splat(x, y, 1400);
@@ -724,6 +845,7 @@
     setTimeout(() => {
       charWrap.classList.remove('blasted');
       charWrap.classList.add('respawn');
+      sfx.respawn();
       setTimeout(() => {
         charWrap.classList.remove('respawn');
         busy = false;
@@ -772,6 +894,7 @@
 
     svg.style.animationPlayState = 'paused';
     charWrap.classList.remove('hit');
+    sfx.grab();
 
     let mouth = null;
 
@@ -839,6 +962,8 @@
         { transform: 'translateX(-50%) translate(0,0) rotate(0)' }
       ], { duration: 1900, easing: 'ease-in-out' });
 
+      [.6, .95, 1.28].forEach((t) => setTimeout(() => sfx.chomp(0), t * 1000));
+      setTimeout(() => sfx.gulp(), 1580);
       setTimeout(cleanup, 1900);
     } else {
       held.animate([
@@ -863,6 +988,7 @@
         { transform: 'translateX(-50%) translate(0,0) rotate(0)' }
       ], { duration: 2100, easing: 'ease-in-out' });
 
+      [.1, .2, .3, .4, 1.6, 1.72, 1.84].forEach((t) => setTimeout(() => sfx.step(0), t * 1000));
       setTimeout(cleanup, 2100);
     }
   }
@@ -874,6 +1000,7 @@
       const key = btn.dataset.char;
       if (key === current) return;
       current = key;
+      sfx.switch();
 
       girlEl.classList.toggle('active', key === 'girl');
       boyEl.classList.toggle('active', key === 'boy');
@@ -900,6 +1027,7 @@
   /* ---------- reset ---------- */
 
   resetBtn.addEventListener('click', () => {
+    sfx.reset();
     score = 0;
     scoreEl.textContent = '0';
     hitsSinceBig = 0;
@@ -937,8 +1065,29 @@
     root.setProperty('--skin-line', rgb(line));
   }
 
-  skinSlider.addEventListener('input', (e) => applySkin(e.target.value));
+  let lastTick = 0;
+  skinSlider.addEventListener('input', (e) => {
+    applySkin(e.target.value);
+    const now = performance.now();
+    if (now - lastTick > 70) {
+      lastTick = now;
+      sfx.slider();
+    }
+  });
   applySkin(skinSlider.value);
+
+  /* ---------- sound toggle ---------- */
+
+  const soundBtn = document.getElementById('sound');
+
+  soundBtn.addEventListener('click', () => {
+    muted = !muted;
+    soundBtn.classList.toggle('off', muted);
+    soundBtn.textContent = muted ? '🔇' : '🔊';
+    soundBtn.setAttribute('aria-pressed', String(!muted));
+    soundBtn.setAttribute('aria-label', muted ? 'Sound off' : 'Sound on');
+    if (!muted) sfx.switch();
+  });
 </script>
 </body>
 </html>
