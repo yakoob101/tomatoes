@@ -243,7 +243,7 @@
       <label class="skin">
         <span class="skin-tag" aria-hidden="true">Easy</span>
         <input id="skin-tone" type="range" min="0" max="100" value="94" step="1" aria-label="Difficulty">
-        <span class="skin-tag hard" aria-hidden="true">Hardest</span>
+        <span class="skin-tag hard" aria-hidden="true">Hard</span>
       </label>
     </div>
   </header>
@@ -398,6 +398,7 @@
   let score = 0;
   let current = 'girl';
   let busy = false;
+  let snacking = false;
   let hitsSinceBig = 0;
   let bigThreshold = 100 + ((Math.random() * 201) | 0);
   let snackHits = 0;
@@ -585,6 +586,7 @@
     if (scoreUp(x, y)) return;   // a special sequence took over this hit
     sfx.hit();
     sfx.score();
+    if (snacking) return;        // keep the snack animation free of splats
     splat(x, y);
     burst(x, y);
     shake();
@@ -777,6 +779,7 @@
       snackHits = 0;
       snackThreshold = 100 + ((Math.random() * 201) | 0);
       busy = true;
+      snacking = true;
       setTimeout(() => snackTime(x, y), 150);
       return true;
     }
@@ -877,6 +880,8 @@
     const eat = Math.random() < 0.5;
     const svg = current === 'girl' ? girlEl : boyEl;
 
+    splats.replaceChildren();   // clear old splats so they don't cover the animation
+
     const cr = charWrap.getBoundingClientRect();
     const sr = stage.getBoundingClientRect();
     const hyFrac = eat ? 0.305 : 0.44;
@@ -908,6 +913,7 @@
       if (mouth) mouth.remove();
       svg.style.animationPlayState = '';
       busy = false;
+      snacking = false;
     };
 
     if (eat) {
@@ -1072,16 +1078,36 @@
     root.setProperty('--skin-line', rgb(line));
   }
 
+  const SKIN_KEY = 'tomatoToss.skin';
+
+  function savedSkinValue() {
+    try {
+      const raw = localStorage.getItem(SKIN_KEY);
+      if (raw === null) return null;
+      const v = Number(raw);
+      return Number.isFinite(v) ? Math.min(100, Math.max(0, Math.round(v))) : null;
+    } catch { return null; }
+  }
+
+  function restoreSkin() {
+    const saved = savedSkinValue();
+    if (saved !== null) skinSlider.value = String(saved);
+    applySkin(skinSlider.value);
+  }
+
   let lastTick = 0;
   skinSlider.addEventListener('input', (e) => {
     applySkin(e.target.value);
+    try { localStorage.setItem(SKIN_KEY, e.target.value); } catch {}
     const now = performance.now();
     if (now - lastTick > 70) {
       lastTick = now;
       sfx.slider();
     }
   });
-  applySkin(skinSlider.value);
+
+  restoreSkin();
+  window.addEventListener('pageshow', restoreSkin);
 
   /* ---------- sound toggle ---------- */
 
