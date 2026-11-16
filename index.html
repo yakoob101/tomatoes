@@ -1395,6 +1395,7 @@
         pop.textContent = "+" + combo;
         pop.style.left = x + "px";
         pop.style.top = y + "px";
+        pop.style.fontSize = Math.min(76, 34 + (combo - 1) * 3) + "px";
         pops.appendChild(pop);
         while (pops.children.length > 24) pops.firstElementChild.remove();
 
