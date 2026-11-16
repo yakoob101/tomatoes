@@ -66,48 +66,6 @@
         font-size: 27px;
         filter: drop-shadow(0 2px 2px rgba(160, 40, 30, 0.25));
       }
-      #scorebox.bump {
-        animation: bump 0.22s ease-out;
-      }
-      @keyframes bump {
-        0% {
-          transform: scale(1);
-        }
-        40% {
-          transform: scale(1.1);
-        }
-        100% {
-          transform: scale(1);
-        }
-      }
-      #scorebox.miss {
-        animation: miss 0.45s ease-out;
-      }
-      @keyframes miss {
-        0% {
-          color: #4b2b18;
-          transform: scale(1);
-        }
-        20% {
-          color: #c0261b;
-          transform: scale(1.14);
-        }
-        40% {
-          color: #c0261b;
-          transform: translateX(-7px) rotate(-2deg);
-        }
-        60% {
-          color: #c0261b;
-          transform: translateX(7px) rotate(2deg);
-        }
-        80% {
-          transform: translateX(-3px);
-        }
-        100% {
-          color: #4b2b18;
-          transform: translateX(0);
-        }
-      }
 
       .controls {
         display: flex;
@@ -268,6 +226,7 @@
         margin: 0 auto;
         touch-action: none;
         cursor: crosshair;
+        contain: layout style;
       }
 
       #shadow {
@@ -296,28 +255,6 @@
       #girl *,
       #boy * {
         pointer-events: auto;
-      }
-      .char.hit {
-        animation: flinch 0.32s ease-out;
-      }
-      @keyframes flinch {
-        0% {
-          transform: translateX(-50%) translate(0, 0) rotate(0) scale(1);
-        }
-        15% {
-          transform: translateX(-50%) translate(-8px, 2px) rotate(-2.2deg)
-            scale(1.02, 0.985);
-        }
-        40% {
-          transform: translateX(-50%) translate(7px, -2px) rotate(1.8deg)
-            scale(0.985, 1.02);
-        }
-        65% {
-          transform: translateX(-50%) translate(-4px, 1px) rotate(-1deg);
-        }
-        100% {
-          transform: translateX(-50%) translate(0, 0) rotate(0) scale(1);
-        }
       }
       .char.blasted {
         animation: blast 0.7s cubic-bezier(0.35, 0.05, 0.6, 1) forwards;
@@ -499,7 +436,6 @@
         );
         box-shadow: 0 1px 2px rgba(120, 20, 10, 0.25);
         transform: translate(-50%, -50%);
-        will-change: transform, opacity;
       }
 
       .ring {
@@ -1086,13 +1022,35 @@
 
       /* ---------- input ---------- */
 
-      stage.addEventListener("pointerdown", (e) => {
-        if (e.button !== 0 || busy) return;
-        const r = stage.getBoundingClientRect();
-        const active = current === "girl" ? girlEl : boyEl;
-        const hit = active.contains(e.target);
-        toss(e.clientX - r.left, e.clientY - r.top, r.width, r.height, hit);
-      });
+      let stageRect = stage.getBoundingClientRect();
+
+      function refreshStageRect() {
+        stageRect = stage.getBoundingClientRect();
+      }
+
+      window.addEventListener("resize", refreshStageRect);
+      window.addEventListener("pageshow", refreshStageRect);
+      if (window.ResizeObserver) {
+        new ResizeObserver(refreshStageRect).observe(stage);
+      }
+      if (document.fonts) document.fonts.ready.then(refreshStageRect);
+
+      stage.addEventListener(
+        "pointerdown",
+        (e) => {
+          if (e.button !== 0 || busy) return;
+          const active = current === "girl" ? girlEl : boyEl;
+          const hit = active.contains(e.target);
+          toss(
+            e.clientX - stageRect.left,
+            e.clientY - stageRect.top,
+            stageRect.width,
+            stageRect.height,
+            hit,
+          );
+        },
+        { passive: true },
+      );
 
       /* ---------- throw ---------- */
 
@@ -1131,22 +1089,39 @@
           else miss(x, y);
         };
 
-        followTrail(tomato, flight);
+        followTrail(tomato, flight, sx, sy, apexX, apexY, x, y);
       }
 
-      function followTrail(tomato, flight) {
-        const sr = stage.getBoundingClientRect();
+      function followTrail(tomato, flight, sx, sy, apexX, apexY, x, y) {
+        const apexDX = apexX - sx;
+        const apexDY = apexY - sy;
+        const endDX = x - sx;
+        const endDY = y - sy;
+        const started = performance.now();
         let last = 0;
 
         function step(now) {
-          if (!tomato.isConnected || flight.playState !== "running") return;
+          if (!tomato.isConnected) return;
 
-          if (now - last > 30) {
+          const t = flight.currentTime;
+          if (t > FLIGHT_MS + 120 || now - started > FLIGHT_MS + 400) return;
+
+          if (now - last > 40) {
             last = now;
-            const r = tomato.getBoundingClientRect();
+            const k = Math.min(1, Math.max(0, (t || 0) / FLIGHT_MS));
+            let dx, dy;
+            if (k < 0.55) {
+              const a = k / 0.55;
+              dx = apexDX * a;
+              dy = apexDY * a;
+            } else {
+              const a = (k - 0.55) / 0.45;
+              dx = apexDX + (endDX - apexDX) * a;
+              dy = apexDY + (endDY - apexDY) * a;
+            }
             drop(
-              r.left + r.width / 2 - sr.left,
-              r.top + r.height / 2 - sr.top,
+              sx + dx,
+              sy + dy,
               2.5 + Math.random() * 4.5,
               260 + Math.random() * 160,
               (Math.random() * 2 - 1) * 8,
@@ -1181,9 +1156,7 @@
         combo = 0;
         comboAt = -1e9;
         scoreEl.textContent = "0";
-        scoreBox.classList.remove("bump", "miss");
-        void scoreBox.offsetWidth;
-        scoreBox.classList.add("miss");
+        missScore();
       }
 
       function splat(x, y, size) {
@@ -1202,7 +1175,7 @@
         svg.style.left = -size / 2 + "px";
         svg.style.top = -size / 2 + "px";
 
-        while (splats.children.length > 34) splats.firstElementChild.remove();
+        while (splats.children.length > 26) splats.firstElementChild.remove();
 
         const rot = Math.random() * 40 - 20;
         const sc = 0.85 + Math.random() * 0.45;
@@ -1284,7 +1257,7 @@
       }
 
       function burst(x, y) {
-        const n = 9 + ((Math.random() * 5) | 0);
+        const n = 7 + ((Math.random() * 3) | 0);
         for (let i = 0; i < n; i++) {
           const ang = (i / n) * Math.PI * 2 + Math.random() * 0.5;
           const dist = 26 + Math.random() * 54;
@@ -1321,7 +1294,7 @@
         d.style.top = y + "px";
         juice.appendChild(d);
 
-        while (juice.children.length > 140) juice.firstElementChild.remove();
+        while (juice.children.length > 90) juice.firstElementChild.remove();
 
         d.animate(
           [
@@ -1337,13 +1310,81 @@
 
       /* ---------- feedback ---------- */
 
+      let bumpAnim = null;
+      let missAnim = null;
+      let flinchAnim = null;
+
+      function bumpScore() {
+        if (bumpAnim) bumpAnim.cancel();
+        if (missAnim) missAnim.cancel();
+        bumpAnim = scoreBox.animate(
+          [
+            { transform: "scale(1)" },
+            { transform: "scale(1.1)", offset: 0.4 },
+            { transform: "scale(1)" },
+          ],
+          { duration: 220, easing: "ease-out" },
+        );
+      }
+
+      function missScore() {
+        if (bumpAnim) bumpAnim.cancel();
+        if (missAnim) missAnim.cancel();
+        missAnim = scoreBox.animate(
+          [
+            { color: "#4b2b18", transform: "scale(1)" },
+            { color: "#c0261b", transform: "scale(1.14)", offset: 0.2 },
+            {
+              color: "#c0261b",
+              transform: "translateX(-7px) rotate(-2deg) scale(1)",
+              offset: 0.4,
+            },
+            {
+              color: "#c0261b",
+              transform: "translateX(7px) rotate(2deg) scale(1)",
+              offset: 0.6,
+            },
+            {
+              color: "#c0261b",
+              transform: "translateX(-3px) rotate(0deg) scale(1)",
+              offset: 0.8,
+            },
+            { color: "#4b2b18", transform: "translateX(0) rotate(0deg) scale(1)" },
+          ],
+          { duration: 450, easing: "ease-out" },
+        );
+      }
+
+      function flinch() {
+        if (flinchAnim) flinchAnim.cancel();
+        flinchAnim = charWrap.animate(
+          [
+            { transform: "translateX(-50%) translate(0,0) rotate(0) scale(1)" },
+            {
+              transform:
+                "translateX(-50%) translate(-8px,2px) rotate(-2.2deg) scale(1.02,.985)",
+              offset: 0.15,
+            },
+            {
+              transform:
+                "translateX(-50%) translate(7px,-2px) rotate(1.8deg) scale(.985,1.02)",
+              offset: 0.4,
+            },
+            {
+              transform: "translateX(-50%) translate(-4px,1px) rotate(-1deg)",
+              offset: 0.65,
+            },
+            { transform: "translateX(-50%) translate(0,0) rotate(0) scale(1)" },
+          ],
+          { duration: 320, easing: "ease-out" },
+        );
+      }
+
       function scoreUp(x, y) {
         score++;
         scoreEl.textContent = score;
 
-        scoreBox.classList.remove("bump");
-        void scoreBox.offsetWidth;
-        scoreBox.classList.add("bump");
+        bumpScore();
 
         const now = performance.now();
         combo = now - comboAt < 900 ? combo + 1 : 1;
@@ -1355,6 +1396,7 @@
         pop.style.left = x + "px";
         pop.style.top = y + "px";
         pops.appendChild(pop);
+        while (pops.children.length > 24) pops.firstElementChild.remove();
 
         pop.animate(
           [
@@ -1369,9 +1411,7 @@
           { duration: 750, easing: "ease-out" },
         ).onfinish = () => pop.remove();
 
-        charWrap.classList.remove("hit");
-        void charWrap.offsetWidth;
-        charWrap.classList.add("hit");
+        flinch();
 
         hitsSinceBig++;
         if (atHardest()) snackHits++;
@@ -1397,13 +1437,16 @@
         return false;
       }
 
+      let shakeAnim = null;
+
       function shake(big) {
         const ramp = Math.min(30, 2.5 * Math.pow(1.045, score));
         const amp = big ? Math.max(38, ramp * 1.6) : ramp;
         const tilt = Math.min(3, amp * 0.09);
         const n = (v) => v.toFixed(1);
 
-        stage.animate(
+        if (shakeAnim) shakeAnim.cancel();
+        shakeAnim = stage.animate(
           [
             { transform: "translate(0,0) rotate(0deg)" },
             {
@@ -1424,19 +1467,14 @@
         );
       }
 
-      charWrap.addEventListener("animationend", (e) => {
-        if (e.animationName === "flinch") charWrap.classList.remove("hit");
-      });
-
       /* ---------- big tomato ---------- */
 
       function bigThrow() {
         busy = true;
         sfx.bigThrow();
 
-        const r = stage.getBoundingClientRect();
-        const cx = r.width / 2;
-        const cy = r.height * 0.38;
+        const cx = stageRect.width / 2;
+        const cy = stageRect.height * 0.38;
 
         const big = document.createElement("div");
         big.className = "tomato big";
@@ -1501,7 +1539,7 @@
           );
         }
 
-        charWrap.classList.remove("hit");
+        if (flinchAnim) flinchAnim.cancel();
         charWrap.classList.add("blasted");
 
         setTimeout(() => {
@@ -1573,7 +1611,7 @@
         );
 
         svg.style.animationPlayState = "paused";
-        charWrap.classList.remove("hit");
+        if (flinchAnim) flinchAnim.cancel();
         sfx.grab();
 
         let mouth = null;
@@ -1849,9 +1887,7 @@
         pops.replaceChildren();
         ammo.replaceChildren();
 
-        scoreBox.classList.remove("bump");
-        void scoreBox.offsetWidth;
-        scoreBox.classList.add("bump");
+        bumpScore();
       });
 
       /* ---------- skin tone ---------- */
