@@ -330,7 +330,6 @@
       #fx,
       #splats,
       #juice,
-      #pops,
       #ammo {
         position: absolute;
         inset: 0;
@@ -338,6 +337,12 @@
       }
       #ammo {
         overflow: visible;
+      }
+      #pops {
+        position: fixed;
+        pointer-events: none;
+        overflow: visible;
+        z-index: 40;
       }
 
       .tomato {
@@ -850,11 +855,12 @@
       <div id="fx">
         <div id="splats"></div>
         <div id="juice"></div>
-        <div id="pops"></div>
       </div>
 
       <div id="ammo"></div>
     </main>
+
+    <div id="pops"></div>
 
     <div id="flash"></div>
 
@@ -1026,6 +1032,10 @@
 
       function refreshStageRect() {
         stageRect = stage.getBoundingClientRect();
+        pops.style.left = stage.offsetLeft + "px";
+        pops.style.top = stage.offsetTop + "px";
+        pops.style.width = stage.offsetWidth + "px";
+        pops.style.height = stage.offsetHeight + "px";
       }
 
       window.addEventListener("resize", refreshStageRect);
@@ -1034,6 +1044,7 @@
         new ResizeObserver(refreshStageRect).observe(stage);
       }
       if (document.fonts) document.fonts.ready.then(refreshStageRect);
+      refreshStageRect();
 
       stage.addEventListener(
         "pointerdown",
