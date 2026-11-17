@@ -477,6 +477,20 @@
           0 2px 0 #b5281d,
           0 0 12px rgba(180, 40, 30, 0.55);
       }
+
+      .steal-pop {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        font-size: clamp(54px, 12vh, 104px);
+        font-weight: 900;
+        letter-spacing: 2px;
+        color: #fff;
+        -webkit-text-stroke: 8px #b5281d;
+        text-shadow:
+          0 6px 0 #8f150e,
+          0 16px 30px rgba(120, 20, 10, 0.4);
+        white-space: nowrap;
+      }
     </style>
   </head>
   <body>
@@ -1660,10 +1674,57 @@
         sfx.grab();
 
         let mouth = null;
+        let stealPop = null;
+
+        const showStealPop = () => {
+          stealPop = document.createElement("div");
+          stealPop.className = "steal-pop";
+          stealPop.textContent = "STOLEN!";
+          stealPop.style.left = cr.left - sr.left + cr.width / 2 + "px";
+          stealPop.style.top = cr.top - sr.top - 34 + "px";
+          pops.appendChild(stealPop);
+
+          stealPop.animate(
+            [
+              {
+                transform: "translate(-50%,-50%) scale(.2) rotate(-16deg)",
+                opacity: 0,
+              },
+              {
+                transform: "translate(-50%,-50%) scale(1.22) rotate(-6deg)",
+                opacity: 1,
+                offset: 0.16,
+              },
+              {
+                transform: "translate(-50%,-50%) scale(.92) rotate(-9deg)",
+                opacity: 1,
+                offset: 0.3,
+              },
+              {
+                transform: "translate(-50%,-50%) scale(1.05) rotate(-7deg)",
+                opacity: 1,
+                offset: 0.42,
+              },
+              {
+                transform: "translate(-50%,-50%) scale(1) rotate(-7deg)",
+                opacity: 1,
+                offset: 0.66,
+              },
+              {
+                transform: "translate(-50%,-50%) scale(1.08) rotate(-7deg)",
+                opacity: 0,
+              },
+            ],
+            { duration: 1400, delay: 180, easing: "ease-out" },
+          ).onfinish = () => stealPop.remove();
+        };
+
+        showStealPop();
 
         const cleanup = () => {
           held.remove();
           if (mouth) mouth.remove();
+          if (stealPop) stealPop.remove();
           svg.style.animationPlayState = "";
           busy = false;
           snacking = false;
