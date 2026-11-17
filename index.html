@@ -1075,6 +1075,7 @@
           if (busy) return;
           const active = current === "girl" ? girlEl : boyEl;
           const hit = active.contains(e.target);
+          if (!hit) return; // only throw while the pointer is on the character
           toss(
             e.clientX - stageRect.left,
             e.clientY - stageRect.top,
