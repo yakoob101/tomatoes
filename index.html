@@ -1046,10 +1046,33 @@
       if (document.fonts) document.fonts.ready.then(refreshStageRect);
       refreshStageRect();
 
+      /* One physical press should throw one tomato. Some touch drivers and
+         assistive tools emit several pointerdowns for a single press, and a
+         busy main thread can deliver a backlog of old presses after the
+         player has already stopped. Both look like endless auto-throwing. */
+      const STALE_MS = 250;
+      const pressedAt = new Map();
+
+      function endPress(e) {
+        pressedAt.delete(e.pointerId);
+      }
+      window.addEventListener("pointerup", endPress, true);
+      window.addEventListener("pointercancel", endPress, true);
+      window.addEventListener("blur", () => pressedAt.clear());
+
       stage.addEventListener(
         "pointerdown",
         (e) => {
-          if (e.button !== 0 || busy) return;
+          if (e.button !== 0) return;
+
+          const now = performance.now();
+          if (e.timeStamp > 0 && now - e.timeStamp > STALE_MS) return;
+
+          const last = pressedAt.get(e.pointerId);
+          if (last != null && now - last < 1000) return;
+          pressedAt.set(e.pointerId, now);
+
+          if (busy) return;
           const active = current === "girl" ? girlEl : boyEl;
           const hit = active.contains(e.target);
           toss(
