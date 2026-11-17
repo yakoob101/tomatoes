@@ -1047,9 +1047,20 @@
       /* ---------- input ---------- */
 
       let stageRect = stage.getBoundingClientRect();
+      let charTopY = stageRect.height * 0.25;
 
       function refreshStageRect() {
         stageRect = stage.getBoundingClientRect();
+        const cr = charWrap.getBoundingClientRect();
+        const svg = current === "girl" ? girlEl : boyEl;
+        let visibleTop = cr.top - stageRect.top;
+        try {
+          const box = svg.getBBox();
+          visibleTop += (box.y / svg.viewBox.baseVal.height) * cr.height;
+        } catch (err) {
+          visibleTop += cr.height * 0.12;
+        }
+        charTopY = visibleTop;
         pops.style.left = stage.offsetLeft + "px";
         pops.style.top = stage.offsetTop + "px";
         pops.style.width = stage.offsetWidth + "px";
@@ -1446,9 +1457,11 @@
         const pop = document.createElement("div");
         pop.className = "pop";
         pop.textContent = "+" + combo;
+        const fontPx = Math.min(76, 34 + (combo - 1) * 3);
         pop.style.left = x + "px";
-        pop.style.top = y + "px";
-        pop.style.fontSize = Math.min(76, 34 + (combo - 1) * 3) + "px";
+        // spawn above the character so the streak never covers them
+        pop.style.top = Math.max(24, charTopY - 26 - fontPx * 0.665) + "px";
+        pop.style.fontSize = fontPx + "px";
         pops.appendChild(pop);
         while (pops.children.length > 24) pops.firstElementChild.remove();
 
@@ -1970,6 +1983,7 @@
           el.classList.remove("switching");
           void el.getBoundingClientRect();
           el.classList.add("switching");
+          refreshStageRect();
         });
       });
 
