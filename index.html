@@ -1006,6 +1006,21 @@
         src.stop(t0 + dur + 0.03);
       }
 
+      const PAIN_VOICES = {
+        "OUCH!": { f: 520, to: 300, d: 0.22, v: 0.1 },
+        "OW!": { f: 640, to: 340, d: 0.16, v: 0.1 },
+        "YOWCH!": { f: 720, to: 380, d: 0.26, v: 0.1 },
+        "EEK!": { f: 900, to: 1280, d: 0.18, v: 0.085 },
+        "AAH!": { f: 560, to: 420, d: 0.24, v: 0.1 },
+        "OOF!": { f: 230, to: 120, d: 0.18, v: 0.12 },
+        "WHAM!": { f: 330, to: 165, d: 0.2, v: 0.11 },
+        "SPLAT!": { f: 430, to: 180, d: 0.22, v: 0.11 },
+        "YEOW!": { f: 780, to: 460, d: 0.24, v: 0.095 },
+        "AIEE!": { f: 840, to: 1320, d: 0.2, v: 0.085 },
+        "HEY!": { f: 430, to: 330, d: 0.16, v: 0.1 },
+        "YIKES!": { f: 640, to: 940, d: 0.22, v: 0.09 },
+      };
+
       const sfx = {
         throw() {
           hiss(0.18, 0.09, 0, "bandpass", 700, 2600, 1.2);
@@ -1024,6 +1039,38 @@
           hiss(0.2, 0.2, 0, "lowpass", 520, 120, 1);
           blip(150, 0.26, "sine", 0.22, 0, 55);
           blip(330, 0.22, "sawtooth", 0.06, 0.02, 190);
+        },
+        pain(word) {
+          const p = PAIN_VOICES[word] || {
+            f: 480,
+            to: 300,
+            d: 0.2,
+            v: 0.1,
+          };
+          const when = 0.035;
+          // voiced yelp
+          blip(p.f, p.d, "sawtooth", p.v, when, p.to, 0.006);
+          // bright harmonic
+          blip(
+            p.f * 2,
+            p.d * 0.85,
+            "triangle",
+            p.v * 0.38,
+            when,
+            p.to * 2,
+            0.005,
+          );
+          // breathy edge
+          hiss(
+            p.d * 0.75,
+            p.v * 0.4,
+            when + 0.005,
+            "bandpass",
+            p.f * 1.8,
+            p.to * 1.7,
+            2.4,
+            0.008,
+          );
         },
         score() {
           blip(680 + Math.min(score, 30) * 12, 0.07, "triangle", 0.06, 0);
@@ -1500,7 +1547,8 @@
       function painPop(x, y) {
         const el = document.createElement("div");
         el.className = "pain";
-        el.textContent = PAIN_WORDS[(Math.random() * PAIN_WORDS.length) | 0];
+        const word = PAIN_WORDS[(Math.random() * PAIN_WORDS.length) | 0];
+        el.textContent = word;
         el.style.fontSize = (26 + Math.random() * 8).toFixed(0) + "px";
         el.style.setProperty(
           "--rot",
@@ -1616,6 +1664,8 @@
           "px";
         el.style.top = cy + "px";
         el.dataset.side = sideKey;
+
+        sfx.pain(word);
 
         while (pains.querySelectorAll(".pain").length > 6) {
           pains.querySelector(".pain").remove();
