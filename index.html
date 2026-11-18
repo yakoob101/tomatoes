@@ -1062,6 +1062,7 @@
 
       let stageRect = stage.getBoundingClientRect();
       let charTopY = stageRect.height * 0.25;
+      let charBox = null;
 
       function refreshStageRect() {
         stageRect = stage.getBoundingClientRect();
@@ -1070,9 +1071,26 @@
         let visibleTop = cr.top - stageRect.top;
         try {
           const box = svg.getBBox();
+          const scale = cr.width / svg.viewBox.baseVal.width;
           visibleTop += (box.y / svg.viewBox.baseVal.height) * cr.height;
+          charBox = {
+            left: cr.left - stageRect.left + box.x * scale,
+            right: cr.left - stageRect.left + (box.x + box.width) * scale,
+            top: visibleTop,
+            bottom:
+              visibleTop +
+              box.height * (cr.height / svg.viewBox.baseVal.height),
+          };
         } catch (err) {
           visibleTop += cr.height * 0.12;
+          const half = cr.width * 0.22;
+          const cx = cr.left - stageRect.left + cr.width / 2;
+          charBox = {
+            left: cx - half,
+            right: cx + half,
+            top: visibleTop,
+            bottom: cr.bottom - stageRect.top,
+          };
         }
         charTopY = visibleTop;
         pops.style.left = stage.offsetLeft + "px";
@@ -1477,20 +1495,62 @@
         const el = document.createElement("div");
         el.className = "pain";
         el.textContent = PAIN_WORDS[(Math.random() * PAIN_WORDS.length) | 0];
-
-        const side = Math.random() < 0.5 ? -1 : 1;
-        const dx = side * (52 + Math.random() * 42);
-        const dy = -14 - Math.random() * 34;
-        el.style.left =
-          Math.min(stageRect.width - 60, Math.max(60, x + dx)) + "px";
-        el.style.top =
-          Math.min(stageRect.height - 42, Math.max(34, y + dy)) + "px";
         el.style.fontSize = (24 + Math.random() * 10).toFixed(0) + "px";
         el.style.setProperty(
           "--rot",
           ((Math.random() * 18 - 9) | 0) + "deg",
         );
         pops.appendChild(el);
+
+        const stageW = stageRect.width;
+        const stageH = stageRect.height;
+        const box = charBox || {
+          left: stageW / 2 - 90,
+          right: stageW / 2 + 90,
+          top: stageH * 0.25,
+          bottom: stageH * 0.8,
+        };
+        const gap = 14;
+        const edge = 6;
+
+        let wordW = el.offsetWidth;
+        let wordH = el.offsetHeight;
+
+        // keep the word fully outside the character's painted silhouette
+        const leftRoom = box.left - gap - edge;
+        const rightRoom = stageW - box.right - gap - edge;
+        const fits = [];
+        if (wordW * 1.2 <= leftRoom) fits.push(-1);
+        if (wordW * 1.2 <= rightRoom) fits.push(1);
+        const side = fits.length
+          ? fits[(Math.random() * fits.length) | 0]
+          : rightRoom >= leftRoom
+            ? 1
+            : -1;
+        const room = side === 1 ? rightRoom : leftRoom;
+
+        // shrink long words on narrow screens so they still clear the model
+        if (wordW * 1.2 > room) {
+          const cur = parseFloat(el.style.fontSize);
+          el.style.fontSize =
+            Math.max(13, (cur * room) / (wordW * 1.2)).toFixed(0) + "px";
+          wordW = el.offsetWidth;
+          wordH = el.offsetHeight;
+        }
+
+        const halfW = wordW * 0.6; // covers the pop-in overshoot
+        const cx =
+          side === 1 ? box.right + gap + halfW : box.left - gap - halfW;
+        const cy = Math.min(
+          stageH - wordH / 2 - edge,
+          Math.max(wordH / 2 + edge, y),
+        );
+
+        el.style.left =
+          Math.min(stageW - halfW - edge, Math.max(halfW + edge, cx)) +
+          "px";
+        el.style.top = cy + "px";
+
         while (pops.querySelectorAll(".pain").length > 6) {
           pops.querySelector(".pain").remove();
         }
