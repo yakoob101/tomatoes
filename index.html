@@ -330,12 +330,14 @@
       #fx,
       #splats,
       #juice,
-      #ammo {
+      #ammo,
+      #pains {
         position: absolute;
         inset: 0;
         pointer-events: none;
       }
-      #ammo {
+      #ammo,
+      #pains {
         overflow: visible;
       }
       #pops {
@@ -887,6 +889,7 @@
       </div>
 
       <div id="ammo"></div>
+      <div id="pains"></div>
     </main>
 
     <div id="pops"></div>
@@ -898,6 +901,7 @@
       const ammo = document.getElementById("ammo");
       const splats = document.getElementById("splats");
       const juice = document.getElementById("juice");
+      const pains = document.getElementById("pains");
       const pops = document.getElementById("pops");
       const scoreEl = document.getElementById("score");
       const scoreBox = document.getElementById("scorebox");
@@ -1502,7 +1506,7 @@
           "--rot",
           ((Math.random() * 18 - 9) | 0) + "deg",
         );
-        pops.appendChild(el);
+        pains.appendChild(el);
 
         const stageW = stageRect.width;
         const stageH = stageRect.height;
@@ -1512,7 +1516,7 @@
           top: stageH * 0.25,
           bottom: stageH * 0.8,
         };
-        const gap = 14;
+        const gap = 38;
         const edge = 6;
 
         let wordW = el.offsetWidth;
@@ -1524,12 +1528,12 @@
         const fits = [];
         if (wordW * 1.2 <= leftRoom) fits.push(-1);
         if (wordW * 1.2 <= rightRoom) fits.push(1);
-        const side = fits.length
+        let side = fits.length
           ? fits[(Math.random() * fits.length) | 0]
           : rightRoom >= leftRoom
             ? 1
             : -1;
-        const room = side === 1 ? rightRoom : leftRoom;
+        let room = side === 1 ? rightRoom : leftRoom;
 
         // shrink long words on narrow screens so they still clear the model
         if (wordW * 1.2 > room) {
@@ -1540,21 +1544,81 @@
           wordH = el.offsetHeight;
         }
 
+        const active = [...pains.querySelectorAll(".pain")].filter(
+          (p) => p !== el && p.dataset.side,
+        );
+        if (active.length >= 6) {
+          active[0].remove();
+          active.shift();
+        }
+
+        // balance the two sides so words have room to stack
+        if (fits.length > 1) {
+          const count = (s) => active.filter((p) => p.dataset.side === s).length;
+          const l = count("L");
+          const r = count("R");
+          if (l !== r) side = l < r ? -1 : 1;
+        }
+
         const halfW = wordW * 0.6; // covers the pop-in overshoot
         const cx =
           side === 1 ? box.right + gap + halfW : box.left - gap - halfW;
-        const cy = Math.min(
-          stageH - wordH / 2 - edge,
-          Math.max(wordH / 2 + edge, y),
-        );
+
+        // reserve the full float path so words on the same side cannot overlap
+        const sideKey = side === 1 ? "R" : "L";
+        const travel = wordH * 1.5;
+        const minCy = travel + edge;
+        const maxCy = stageH - wordH * 0.5 - edge;
+        const sameSide = active
+          .filter((p) => p.dataset.side === sideKey)
+          .map((p) => {
+            const h = p.offsetHeight;
+            const top = parseFloat(p.style.top) || 0;
+            return { top: top - h * 1.5, bottom: top + h * 0.5 };
+          });
+
+        const laneStep = wordH + 10;
+        let cy = Math.min(maxCy, Math.max(minCy, y));
+        let bestGap = -Infinity;
+        let placed = false;
+        for (let k = 0; k <= 12 && !placed; k++) {
+          const cands = k === 0 ? [y] : [y - k * laneStep, y + k * laneStep];
+          for (const cand of cands) {
+            const c = Math.min(maxCy, Math.max(minCy, cand));
+            const top = c - travel;
+            const bottom = c + wordH * 0.5;
+            let clear = true;
+            let nearest = Infinity;
+            for (const o of sameSide) {
+              if (top < o.bottom + 6 && bottom > o.top - 6) {
+                clear = false;
+                break;
+              }
+              nearest = Math.min(
+                nearest,
+                Math.max(o.top - bottom, top - o.bottom),
+              );
+            }
+            if (clear) {
+              cy = c;
+              placed = true;
+              break;
+            }
+            if (nearest > bestGap) {
+              bestGap = nearest;
+              cy = c;
+            }
+          }
+        }
 
         el.style.left =
           Math.min(stageW - halfW - edge, Math.max(halfW + edge, cx)) +
           "px";
         el.style.top = cy + "px";
+        el.dataset.side = sideKey;
 
-        while (pops.querySelectorAll(".pain").length > 6) {
-          pops.querySelector(".pain").remove();
+        while (pains.querySelectorAll(".pain").length > 6) {
+          pains.querySelector(".pain").remove();
         }
 
         el.animate(
@@ -2156,6 +2220,7 @@
         painCountdown = 2;
         splats.replaceChildren();
         juice.replaceChildren();
+        pains.replaceChildren();
         pops.replaceChildren();
         ammo.replaceChildren();
 
