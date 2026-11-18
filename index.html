@@ -327,7 +327,6 @@
         }
       }
 
-      #fx,
       #splats,
       #juice,
       #ammo,
@@ -883,10 +882,8 @@
         </svg>
       </div>
 
-      <div id="fx">
-        <div id="splats"></div>
-        <div id="juice"></div>
-      </div>
+      <div id="splats"></div>
+      <div id="juice"></div>
 
       <div id="ammo"></div>
       <div id="pains"></div>
@@ -1041,12 +1038,7 @@
           blip(330, 0.22, "sawtooth", 0.06, 0.02, 190);
         },
         pain(word) {
-          const p = PAIN_VOICES[word] || {
-            f: 480,
-            to: 300,
-            d: 0.2,
-            v: 0.1,
-          };
+          const p = PAIN_VOICES[word];
           const when = 0.035;
           // voiced yelp
           blip(p.f, p.d, "sawtooth", p.v, when, p.to, 0.006);
@@ -1114,8 +1106,7 @@
       /* ---------- input ---------- */
 
       let stageRect = stage.getBoundingClientRect();
-      let charTopY = stageRect.height * 0.25;
-      let charBox = null;
+      let charBox = { left: 0, right: 0, top: stageRect.height * 0.25 };
 
       function refreshStageRect() {
         stageRect = stage.getBoundingClientRect();
@@ -1130,9 +1121,6 @@
             left: cr.left - stageRect.left + box.x * scale,
             right: cr.left - stageRect.left + (box.x + box.width) * scale,
             top: visibleTop,
-            bottom:
-              visibleTop +
-              box.height * (cr.height / svg.viewBox.baseVal.height),
           };
         } catch (err) {
           visibleTop += cr.height * 0.12;
@@ -1142,10 +1130,8 @@
             left: cx - half,
             right: cx + half,
             top: visibleTop,
-            bottom: cr.bottom - stageRect.top,
           };
         }
-        charTopY = visibleTop;
         pops.style.left = stage.offsetLeft + "px";
         pops.style.top = stage.offsetTop + "px";
         pops.style.width = stage.offsetWidth + "px";
@@ -1529,20 +1515,7 @@
         );
       }
 
-      const PAIN_WORDS = [
-        "OUCH!",
-        "OW!",
-        "YOWCH!",
-        "EEK!",
-        "AAH!",
-        "OOF!",
-        "WHAM!",
-        "SPLAT!",
-        "YEOW!",
-        "AIEE!",
-        "HEY!",
-        "YIKES!",
-      ];
+      const PAIN_WORDS = Object.keys(PAIN_VOICES);
 
       function painPop(x, y) {
         const el = document.createElement("div");
@@ -1558,12 +1531,7 @@
 
         const stageW = stageRect.width;
         const stageH = stageRect.height;
-        const box = charBox || {
-          left: stageW / 2 - 90,
-          right: stageW / 2 + 90,
-          top: stageH * 0.25,
-          bottom: stageH * 0.8,
-        };
+        const box = charBox;
         const gap = 38;
         const edge = 6;
 
@@ -1667,10 +1635,6 @@
 
         sfx.pain(word);
 
-        while (pains.querySelectorAll(".pain").length > 6) {
-          pains.querySelector(".pain").remove();
-        }
-
         el.animate(
           [
             {
@@ -1717,7 +1681,7 @@
         const fontPx = Math.min(76, 34 + (combo - 1) * 3);
         pop.style.left = x + "px";
         // spawn above the character so the streak never covers them
-        pop.style.top = Math.max(24, charTopY - 26 - fontPx * 0.665) + "px";
+        pop.style.top = Math.max(24, charBox.top - 26 - fontPx * 0.665) + "px";
         pop.style.fontSize = fontPx + "px";
         pops.appendChild(pop);
         while (pops.children.length > 24) pops.firstElementChild.remove();
