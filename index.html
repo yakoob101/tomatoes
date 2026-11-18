@@ -481,11 +481,11 @@
       .pain {
         position: absolute;
         transform: translate(-50%, -50%);
-        font-size: 24px;
+        font-size: 26px;
         font-weight: 900;
         letter-spacing: 0.5px;
         color: #fff;
-        -webkit-text-stroke: 4px #b5281d;
+        -webkit-text-stroke: 5px #b5281d;
         text-shadow:
           0 3px 0 #8f150e,
           0 6px 12px rgba(120, 20, 10, 0.3);
@@ -1458,6 +1458,73 @@
         );
       }
 
+      const PAIN_WORDS = [
+        "OUCH!",
+        "OW!",
+        "YOWCH!",
+        "EEK!",
+        "AAH!",
+        "OOF!",
+        "WHAM!",
+        "SPLAT!",
+        "YEOW!",
+        "AIEE!",
+        "HEY!",
+        "YIKES!",
+      ];
+
+      function painPop(x, y) {
+        const el = document.createElement("div");
+        el.className = "pain";
+        el.textContent = PAIN_WORDS[(Math.random() * PAIN_WORDS.length) | 0];
+
+        const side = Math.random() < 0.5 ? -1 : 1;
+        const dx = side * (52 + Math.random() * 42);
+        const dy = -14 - Math.random() * 34;
+        el.style.left =
+          Math.min(stageRect.width - 60, Math.max(60, x + dx)) + "px";
+        el.style.top =
+          Math.min(stageRect.height - 42, Math.max(34, y + dy)) + "px";
+        el.style.fontSize = (24 + Math.random() * 10).toFixed(0) + "px";
+        el.style.setProperty(
+          "--rot",
+          ((Math.random() * 18 - 9) | 0) + "deg",
+        );
+        pops.appendChild(el);
+        while (pops.querySelectorAll(".pain").length > 6) {
+          pops.querySelector(".pain").remove();
+        }
+
+        el.animate(
+          [
+            {
+              transform:
+                "translate(-50%,-50%) rotate(var(--rot)) scale(.4)",
+              opacity: 0,
+            },
+            {
+              transform:
+                "translate(-50%,-70%) rotate(var(--rot)) scale(1.15)",
+              opacity: 1,
+              offset: 0.18,
+            },
+            {
+              transform:
+                "translate(-50%,-90%) rotate(var(--rot)) scale(1)",
+              opacity: 1,
+              offset: 0.7,
+            },
+            {
+              transform:
+                "translate(-50%,-150%) rotate(var(--rot)) scale(.95)",
+              opacity: 0,
+            },
+          ],
+          { duration: 800, easing: "ease-out" },
+        ).onfinish = () => el.remove();
+        setTimeout(() => el.remove(), 1150);
+      }
+
       function scoreUp(x, y) {
         score++;
         scoreEl.textContent = score;
@@ -1500,6 +1567,8 @@
           ],
           { duration: 900, easing: "linear" },
         ).onfinish = () => pop.remove();
+
+        painPop(x, y);
 
         flinch();
 
