@@ -921,6 +921,7 @@
       let snackThreshold = 10;
       let combo = 0;
       let comboAt = -1e9;
+      let painCountdown = 2;
 
       /* ---------- sound ---------- */
 
@@ -1629,7 +1630,10 @@
           { duration: 900, easing: "linear" },
         ).onfinish = () => pop.remove();
 
-        painPop(x, y);
+        if (--painCountdown <= 0) {
+          painPop(x, y);
+          painCountdown = 2 + ((Math.random() * 2) | 0);
+        }
 
         flinch();
 
@@ -2149,7 +2153,7 @@
         snackThreshold = 10;
         combo = 0;
         comboAt = -1e9;
-
+        painCountdown = 2;
         splats.replaceChildren();
         juice.replaceChildren();
         pops.replaceChildren();
