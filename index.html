@@ -1003,19 +1003,79 @@
         src.stop(t0 + dur + 0.03);
       }
 
+      const VOWELS = {
+        ow: [[700, 450], [1100, 850], [2600, 2500]],
+        ah: [[800, 700], [1200, 1150], [2600, 2500]],
+        ee: [[300, 320], [2300, 2200], [3000, 2900]],
+        oo: [[350, 330], [700, 650], [2500, 2400]],
+        eh: [[500, 450], [1800, 1700], [2600, 2500]],
+        eye: [[750, 350], [1200, 2200], [2600, 2900]],
+      };
+
+      function voice(f0, to, dur, vol, vowel, when, formantScale) {
+        if (muted) return;
+        const c = ac();
+        if (!c) return;
+        const t0 = c.currentTime + when;
+
+        const o = c.createOscillator();
+        o.type = "sawtooth";
+        o.detune.value = (Math.random() * 2 - 1) * 18;
+        o.frequency.setValueAtTime(f0, t0);
+        o.frequency.exponentialRampToValueAtTime(f0 * 1.15, t0 + dur * 0.35);
+        o.frequency.exponentialRampToValueAtTime(Math.max(1, to), t0 + dur);
+
+        const env = c.createGain();
+        env.gain.setValueAtTime(0.0001, t0);
+        env.gain.exponentialRampToValueAtTime(vol, t0 + 0.012);
+        env.gain.setValueAtTime(vol, t0 + dur * 0.55);
+        env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        env.connect(master);
+
+        // a little dry body under the formants
+        const lp = c.createBiquadFilter();
+        lp.type = "lowpass";
+        lp.frequency.value = 3000;
+        const lg = c.createGain();
+        lg.gain.value = 0.12;
+        o.connect(lp);
+        lp.connect(lg);
+        lg.connect(env);
+
+        const formants = VOWELS[vowel] || VOWELS.ah;
+        const gains = [1, 0.55, 0.3];
+        for (let i = 0; i < 3; i++) {
+          const f = c.createBiquadFilter();
+          f.type = "bandpass";
+          f.Q.value = 9 + i * 3;
+          const a = formants[i][0] * formantScale;
+          const b = formants[i][1] * formantScale;
+          f.frequency.setValueAtTime(a, t0);
+          if (b !== a) f.frequency.exponentialRampToValueAtTime(b, t0 + dur);
+          const g = c.createGain();
+          g.gain.value = gains[i];
+          o.connect(f);
+          f.connect(g);
+          g.connect(env);
+        }
+
+        o.start(t0);
+        o.stop(t0 + dur + 0.03);
+      }
+
       const PAIN_VOICES = {
-        "OUCH!": { f: 520, to: 300, d: 0.22, v: 0.1 },
-        "OW!": { f: 640, to: 340, d: 0.16, v: 0.1 },
-        "YOWCH!": { f: 720, to: 380, d: 0.26, v: 0.1 },
-        "EEK!": { f: 900, to: 1280, d: 0.18, v: 0.085 },
-        "AAH!": { f: 560, to: 420, d: 0.24, v: 0.1 },
-        "OOF!": { f: 230, to: 120, d: 0.18, v: 0.12 },
-        "WHAM!": { f: 330, to: 165, d: 0.2, v: 0.11 },
-        "SPLAT!": { f: 430, to: 180, d: 0.22, v: 0.11 },
-        "YEOW!": { f: 780, to: 460, d: 0.24, v: 0.095 },
-        "AIEE!": { f: 840, to: 1320, d: 0.2, v: 0.085 },
-        "HEY!": { f: 430, to: 330, d: 0.16, v: 0.1 },
-        "YIKES!": { f: 640, to: 940, d: 0.22, v: 0.09 },
+        "OUCH!": { f: 300, to: 190, d: 0.26, v: 0.18, vowel: "ow" },
+        "OW!": { f: 320, to: 200, d: 0.2, v: 0.18, vowel: "ow" },
+        "YOWCH!": { f: 340, to: 190, d: 0.3, v: 0.18, vowel: "ow" },
+        "EEK!": { f: 380, to: 560, d: 0.2, v: 0.16, vowel: "ee" },
+        "AAH!": { f: 280, to: 210, d: 0.28, v: 0.18, vowel: "ah" },
+        "OOF!": { f: 150, to: 95, d: 0.2, v: 0.2, vowel: "oo" },
+        "WHAM!": { f: 210, to: 125, d: 0.22, v: 0.19, vowel: "ah" },
+        "SPLAT!": { f: 230, to: 115, d: 0.24, v: 0.19, vowel: "ah" },
+        "YEOW!": { f: 350, to: 210, d: 0.3, v: 0.18, vowel: "ow" },
+        "AIEE!": { f: 400, to: 600, d: 0.24, v: 0.16, vowel: "eye" },
+        "HEY!": { f: 260, to: 215, d: 0.18, v: 0.18, vowel: "eh" },
+        "YIKES!": { f: 320, to: 420, d: 0.26, v: 0.17, vowel: "eye" },
       };
 
       const sfx = {
@@ -1039,29 +1099,28 @@
         },
         pain(word) {
           const p = PAIN_VOICES[word];
-          const when = 0.035;
-          // voiced yelp
-          blip(p.f, p.d, "sawtooth", p.v, when, p.to, 0.006);
-          // bright harmonic
-          blip(
-            p.f * 2,
-            p.d * 0.85,
-            "triangle",
-            p.v * 0.38,
-            when,
-            p.to * 2,
-            0.005,
+          const fem = current === "girl" ? 1 : 0.8;
+          const jitter = 0.94 + Math.random() * 0.12;
+          // formant-filtered voice: the vowel carries the yelp
+          voice(
+            p.f * fem * jitter,
+            p.to * fem * jitter,
+            p.d,
+            p.v,
+            p.vowel,
+            0.035,
+            fem,
           );
-          // breathy edge
+          // breath pushed out with the shout
           hiss(
-            p.d * 0.75,
-            p.v * 0.4,
-            when + 0.005,
+            p.d * 0.45,
+            p.v * 0.3,
+            0.02,
             "bandpass",
-            p.f * 1.8,
-            p.to * 1.7,
-            2.4,
-            0.008,
+            1700 * fem,
+            900 * fem,
+            1.2,
+            0.006,
           );
         },
         score() {
@@ -1219,6 +1278,7 @@
         );
 
         flight.onfinish = () => {
+          if (!tomato.isConnected) return; // reset removed it mid-flight
           tomato.remove();
           if (hit) impact(x, y);
           else miss(x, y);
