@@ -1012,7 +1012,13 @@
         eye: [[750, 350], [1200, 2200], [2600, 2900]],
       };
 
-      function voice(f0, to, dur, vol, vowel, when, formantScale) {
+      // separate speakers: a bright, higher voice for the girl, a deeper chestier one for the boy
+      const VOICE_PROFILE = {
+        girl: { pitch: 1.1, formant: 1.08, q: 11, body: 3400, bodyGain: 0.1, breath: 1700 },
+        boy: { pitch: 0.7, formant: 0.82, q: 6, body: 2000, bodyGain: 0.24, breath: 950 },
+      };
+
+      function voice(f0, to, dur, vol, vowel, when, prof) {
         if (muted) return;
         const c = ac();
         if (!c) return;
@@ -1032,12 +1038,12 @@
         env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
         env.connect(master);
 
-        // a little dry body under the formants
+        // dry body under the formants: more of it, lower, makes the boy chesty
         const lp = c.createBiquadFilter();
         lp.type = "lowpass";
-        lp.frequency.value = 3000;
+        lp.frequency.value = prof.body;
         const lg = c.createGain();
-        lg.gain.value = 0.12;
+        lg.gain.value = prof.bodyGain;
         o.connect(lp);
         lp.connect(lg);
         lg.connect(env);
@@ -1047,9 +1053,9 @@
         for (let i = 0; i < 3; i++) {
           const f = c.createBiquadFilter();
           f.type = "bandpass";
-          f.Q.value = 9 + i * 3;
-          const a = formants[i][0] * formantScale;
-          const b = formants[i][1] * formantScale;
+          f.Q.value = prof.q + i * 3;
+          const a = formants[i][0] * prof.formant;
+          const b = formants[i][1] * prof.formant;
           f.frequency.setValueAtTime(a, t0);
           if (b !== a) f.frequency.exponentialRampToValueAtTime(b, t0 + dur);
           const g = c.createGain();
@@ -1099,26 +1105,26 @@
         },
         pain(word) {
           const p = PAIN_VOICES[word];
-          const fem = current === "girl" ? 1 : 0.8;
+          const prof = current === "girl" ? VOICE_PROFILE.girl : VOICE_PROFILE.boy;
           const jitter = 0.94 + Math.random() * 0.12;
           // formant-filtered voice: the vowel carries the yelp
           voice(
-            p.f * fem * jitter,
-            p.to * fem * jitter,
+            p.f * prof.pitch * jitter,
+            p.to * prof.pitch * jitter,
             p.d,
             p.v,
             p.vowel,
             0.035,
-            fem,
+            prof,
           );
           // breath pushed out with the shout
           hiss(
             p.d * 0.45,
-            p.v * 0.3,
+            p.v * 0.35,
             0.02,
             "bandpass",
-            1700 * fem,
-            900 * fem,
+            prof.breath,
+            prof.breath * 0.55,
             1.2,
             0.006,
           );
