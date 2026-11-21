@@ -911,7 +911,8 @@
 
       const SPLAT_COLORS = ["#c92c22", "#b5231b", "#d93a2b", "#bf2a20"];
       const FLIGHT_MS = 380;
-      const PAIN_GAP = 4; // first yelp on hit 4, then 4-6 hits apart
+      const PAIN_FIRST = 11; // no yelp until 10 hits are done, so it lands on hit 11
+      const PAIN_GAP = 4; // after that, 4-6 hits apart
 
       let score = 0;
       let current = "girl";
@@ -923,7 +924,7 @@
       let snackThreshold = 10;
       let combo = 0;
       let comboAt = -1e9;
-      let painCountdown = PAIN_GAP;
+      let painCountdown = PAIN_FIRST;
 
       /* ---------- sound ---------- */
 
@@ -2298,7 +2299,7 @@
         snackThreshold = 10;
         combo = 0;
         comboAt = -1e9;
-        painCountdown = PAIN_GAP;
+        painCountdown = PAIN_FIRST;
         splats.replaceChildren();
         juice.replaceChildren();
         pains.replaceChildren();
