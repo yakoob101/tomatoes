@@ -911,6 +911,7 @@
 
       const SPLAT_COLORS = ["#c92c22", "#b5231b", "#d93a2b", "#bf2a20"];
       const FLIGHT_MS = 380;
+      const PAIN_GAP = 4; // first yelp on hit 4, then 4-6 hits apart
 
       let score = 0;
       let current = "girl";
@@ -922,7 +923,7 @@
       let snackThreshold = 10;
       let combo = 0;
       let comboAt = -1e9;
-      let painCountdown = 2;
+      let painCountdown = PAIN_GAP;
 
       /* ---------- sound ---------- */
 
@@ -1776,7 +1777,7 @@
 
         if (--painCountdown <= 0) {
           painPop(x, y);
-          painCountdown = 2 + ((Math.random() * 2) | 0);
+          painCountdown = PAIN_GAP + ((Math.random() * 3) | 0);
         }
 
         flinch();
@@ -2297,7 +2298,7 @@
         snackThreshold = 10;
         combo = 0;
         comboAt = -1e9;
-        painCountdown = 2;
+        painCountdown = PAIN_GAP;
         splats.replaceChildren();
         juice.replaceChildren();
         pains.replaceChildren();
