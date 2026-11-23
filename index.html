@@ -464,6 +464,25 @@
         right: -2px;
       }
 
+      .tomato.big.banana {
+        width: 150px;
+        height: 62px;
+        box-shadow:
+          inset -10px -14px 28px rgba(120, 85, 0, 0.35),
+          0 18px 50px rgba(140, 110, 20, 0.35);
+      }
+      .tomato.big.banana::before,
+      .tomato.big.banana::after {
+        width: 22px;
+        height: 22px;
+      }
+      .tomato.big.banana::before {
+        left: -8px;
+      }
+      .tomato.big.banana::after {
+        right: -8px;
+      }
+
       #flash {
         position: fixed;
         inset: 0;
@@ -471,6 +490,9 @@
         pointer-events: none;
         background: radial-gradient(circle at 50% 45%, #f25a45, #d0271a 70%);
         opacity: 0;
+      }
+      #flash.banana {
+        background: radial-gradient(circle at 50% 45%, #fff2a8, #f3c319 70%);
       }
 
       .drop {
@@ -2010,9 +2032,10 @@
 
         const cx = stageRect.width / 2;
         const cy = stageRect.height * 0.38;
+        const banana = fruit === "banana";
 
         const big = document.createElement("div");
-        big.className = "tomato big";
+        big.className = "tomato big" + (banana ? " banana" : "");
         big.style.left = cx + "px";
         big.style.top = cy + "px";
         ammo.appendChild(big);
@@ -2051,15 +2074,15 @@
 
         flight.onfinish = () => {
           big.remove();
-          bigImpact(cx, cy);
+          bigImpact(cx, cy, banana);
         };
       }
 
-      function bigImpact(x, y) {
+      function bigImpact(x, y, banana) {
         sfx.bigImpact();
-        flashScreen();
+        flashScreen(banana);
         shake(true);
-        splat(x, y, 1400);
+        splat(x, y, 1400, banana);
 
         for (let i = 0; i < 30; i++) {
           const ang = Math.random() * Math.PI * 2;
@@ -2071,6 +2094,7 @@
             600 + Math.random() * 500,
             Math.cos(ang) * dist,
             Math.sin(ang) * dist + 40,
+            banana,
           );
         }
 
@@ -2088,7 +2112,8 @@
         }, 780);
       }
 
-      function flashScreen() {
+      function flashScreen(banana) {
+        flashEl.classList.toggle("banana", !!banana);
         flashEl.animate(
           [
             { opacity: 0 },
