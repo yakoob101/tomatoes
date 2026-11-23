@@ -1210,11 +1210,24 @@
       };
 
       const sfx = {
-        throw() {
+        throw(banana) {
+          if (banana) {
+            // softer, airier whip than the tomato
+            hiss(0.2, 0.075, 0, "bandpass", 520, 1500, 0.9);
+            blip(300, 0.1, "sine", 0.03, 0, 520);
+            return;
+          }
           hiss(0.18, 0.09, 0, "bandpass", 700, 2600, 1.2);
           blip(430, 0.08, "triangle", 0.04, 0, 780);
         },
-        hit() {
+        hit(banana) {
+          if (banana) {
+            // dull soft thump, no bright wet splat
+            hiss(0.12, 0.26, 0, "lowpass", 950, 170, 0.8, 0.003);
+            blip(190, 0.17, "sine", 0.17, 0, 62, 0.004);
+            hiss(0.06, 0.05, 0.05, "bandpass", 1200, 600, 1.5, 0.002);
+            return;
+          }
           // wet splat: noise smacking down into a squelch
           hiss(0.14, 0.3, 0, "bandpass", 2600, 320, 1.1, 0.003);
           hiss(0.09, 0.14, 0, "lowpass", 1300, 190, 0.9, 0.004);
@@ -1223,9 +1236,14 @@
           // droplets flicking off
           hiss(0.05, 0.07, 0.055, "bandpass", 3500, 1400, 1.8, 0.002);
         },
-        miss() {
-          hiss(0.2, 0.2, 0, "lowpass", 520, 120, 1);
-          blip(150, 0.26, "sine", 0.22, 0, 55);
+        miss(banana) {
+          if (banana) {
+            hiss(0.16, 0.2, 0, "lowpass", 600, 130, 0.9);
+            blip(120, 0.24, "sine", 0.2, 0, 48);
+          } else {
+            hiss(0.2, 0.2, 0, "lowpass", 520, 120, 1);
+            blip(150, 0.26, "sine", 0.22, 0, 55);
+          }
           blip(330, 0.22, "sawtooth", 0.06, 0.02, 190);
         },
         pain(word) {
@@ -1262,11 +1280,23 @@
           blip(185, 0.085, "triangle", 0.2, 0, 95, 0.002);
           blip(1500, 0.02, "square", 0.04, 0, 1000, 0.001);
         },
-        bigThrow() {
+        bigThrow(banana) {
+          if (banana) {
+            hiss(0.7, 0.12, 0, "lowpass", 170, 700, 1);
+            blip(55, 0.6, "sine", 0.14, 0, 95);
+            return;
+          }
           hiss(0.7, 0.14, 0, "lowpass", 220, 900, 1);
           blip(70, 0.6, "sine", 0.16, 0, 130);
         },
-        bigImpact() {
+        bigImpact(banana) {
+          if (banana) {
+            // huge soft thud instead of a wet explosion
+            hiss(0.85, 0.36, 0, "lowpass", 850, 70, 1);
+            blip(70, 0.7, "sine", 0.3, 0, 26);
+            hiss(0.14, 0.16, 0, "bandpass", 1500, 450, 1.4);
+            return;
+          }
           hiss(0.9, 0.4, 0, "lowpass", 1600, 90, 1);
           blip(95, 0.75, "sine", 0.34, 0, 32);
           hiss(0.12, 0.26, 0, "bandpass", 3200, 1200, 1.5);
@@ -1385,8 +1415,8 @@
       /* ---------- throw ---------- */
 
       function toss(x, y, w, h, hit) {
-        sfx.throw();
         const banana = fruit === "banana";
+        sfx.throw(banana);
 
         const sx = w * 0.5 + (Math.random() - 0.5) * 110;
         const sy = h + 60;
@@ -1470,7 +1500,7 @@
 
       function impact(x, y, banana) {
         if (scoreUp(x, y)) return; // a special sequence took over this hit
-        sfx.hit();
+        sfx.hit(banana);
         sfx.score();
         if (snacking) return; // keep the snack animation free of splats
         splat(x, y, 152, banana);
@@ -1479,7 +1509,7 @@
       }
 
       function miss(x, y, banana) {
-        sfx.miss();
+        sfx.miss(banana);
         splat(x, y, 152, banana);
         burst(x, y, banana);
         shake();
@@ -2028,11 +2058,11 @@
 
       function bigThrow() {
         busy = true;
-        sfx.bigThrow();
+        const banana = fruit === "banana";
+        sfx.bigThrow(banana);
 
         const cx = stageRect.width / 2;
         const cy = stageRect.height * 0.38;
-        const banana = fruit === "banana";
 
         const big = document.createElement("div");
         big.className = "tomato big" + (banana ? " banana" : "");
@@ -2079,7 +2109,7 @@
       }
 
       function bigImpact(x, y, banana) {
-        sfx.bigImpact();
+        sfx.bigImpact(banana);
         flashScreen(banana);
         shake(true);
         splat(x, y, 1400, banana);
