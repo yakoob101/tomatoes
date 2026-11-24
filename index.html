@@ -114,7 +114,8 @@
 
       #reset,
       #sound,
-      #banana {
+      #banana,
+      #coconut {
         font: inherit;
         font-weight: 700;
         font-size: 15px;
@@ -133,13 +134,15 @@
       }
       #reset:hover,
       #sound:hover,
-      #banana:hover {
+      #banana:hover,
+      #coconut:hover {
         color: #b5281d;
         background: #fff;
       }
       #reset:active,
       #sound:active,
-      #banana:active {
+      #banana:active,
+      #coconut:active {
         transform: scale(0.96);
       }
       #sound {
@@ -151,7 +154,8 @@
       #sound.off {
         opacity: 0.45;
       }
-      #banana {
+      #banana,
+      #coconut {
         padding: 9px 12px;
         font-size: 17px;
         line-height: 1;
@@ -162,6 +166,12 @@
         background: #fff6cf;
         border-color: #f3c319;
         box-shadow: 0 3px 9px rgba(190, 150, 20, 0.4);
+      }
+      #coconut.on,
+      #coconut.on:hover {
+        background: #f7efe2;
+        border-color: #a97a4d;
+        box-shadow: 0 3px 9px rgba(120, 80, 30, 0.4);
       }
 
       .skin {
@@ -483,6 +493,49 @@
         right: -8px;
       }
 
+      .tomato.coconut {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle at 34% 28%,
+          #b98a5b 0%,
+          #7a5230 45%,
+          #452a14 100%
+        );
+        box-shadow:
+          inset -4px -5px 10px rgba(0, 0, 0, 0.35),
+          0 4px 10px rgba(70, 45, 20, 0.3);
+      }
+      .tomato.coconut::before {
+        top: 22%;
+        left: 50%;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #2b1a0c;
+        clip-path: none;
+        transform: translateX(-50%);
+        box-shadow:
+          -11px 5px 0 #2b1a0c,
+          11px 5px 0 #2b1a0c;
+      }
+      .tomato.coconut::after {
+        display: none;
+      }
+      .tomato.big.coconut {
+        width: 132px;
+        height: 132px;
+      }
+      .tomato.big.coconut::before {
+        top: 22%;
+        width: 20px;
+        height: 20px;
+        box-shadow:
+          -32px 14px 0 #2b1a0c,
+          32px 14px 0 #2b1a0c;
+      }
+
       #flash {
         position: fixed;
         inset: 0;
@@ -493,6 +546,9 @@
       }
       #flash.banana {
         background: radial-gradient(circle at 50% 45%, #fff2a8, #f3c319 70%);
+      }
+      #flash.coconut {
+        background: radial-gradient(circle at 50% 45%, #fff8e6, #c99a63 70%);
       }
 
       .drop {
@@ -515,6 +571,15 @@
           #b8890b
         );
         box-shadow: 0 1px 2px rgba(120, 90, 0, 0.25);
+      }
+      .drop.coconut {
+        background: radial-gradient(
+          circle at 35% 30%,
+          #fdf6e6,
+          #d9b98a 55%,
+          #8a5a33
+        );
+        box-shadow: 0 1px 2px rgba(90, 60, 20, 0.25);
       }
 
       .ring {
@@ -647,11 +712,22 @@
         <button
           type="button"
           id="banana"
+          data-fruit="banana"
           hidden
           aria-pressed="false"
           aria-label="Throw bananas"
         >
           🍌
+        </button>
+        <button
+          type="button"
+          id="coconut"
+          data-fruit="coconut"
+          hidden
+          aria-pressed="false"
+          aria-label="Throw coconuts"
+        >
+          🥥
         </button>
         <button
           type="button"
@@ -1026,19 +1102,37 @@
       const boyEl = document.getElementById("boy");
       const flashEl = document.getElementById("flash");
       const skinSlider = document.getElementById("skin-tone");
-      const bananaBtn = document.getElementById("banana");
 
       const SPLAT_COLORS = ["#c92c22", "#b5231b", "#d93a2b", "#bf2a20"];
       const BANANA_COLORS = ["#f3c319", "#e8b30d", "#ffd633", "#d9a40a"];
+      const COCONUT_COLORS = ["#8a5a33", "#7a4b26", "#9a6a3f", "#6b3f1e"];
+      const FRUITS = {
+        tomato: { colors: SPLAT_COLORS, core: "#f26a53" },
+        banana: {
+          at: 100, // hits needed to unlock the banana
+          colors: BANANA_COLORS,
+          core: "#ffe98a",
+          emoji: "🍌",
+          name: "BANANA",
+          plural: "bananas",
+        },
+        coconut: {
+          at: 500, // hits needed to unlock the coconut
+          colors: COCONUT_COLORS,
+          core: "#fff6e3",
+          emoji: "🥥",
+          name: "COCONUT",
+          plural: "coconuts",
+        },
+      };
       const FLIGHT_MS = 380;
-      const BANANA_AT = 100; // hits needed to unlock the banana
       const PAIN_FIRST = 11; // no yelp until 10 hits are done, so it lands on hit 11
       const PAIN_GAP = 4; // after that, 4-6 hits apart
 
       let score = 0;
       let current = "girl";
       let fruit = "tomato";
-      let bananaUnlocked = false;
+      const unlocked = { banana: false, coconut: false };
       let busy = false;
       let snacking = false;
       let hitsSinceBig = 0;
@@ -1210,22 +1304,35 @@
       };
 
       const sfx = {
-        throw(banana) {
-          if (banana) {
+        throw(f) {
+          if (f === "banana") {
             // softer, airier whip than the tomato
             hiss(0.2, 0.075, 0, "bandpass", 520, 1500, 0.9);
             blip(300, 0.1, "sine", 0.03, 0, 520);
             return;
           }
+          if (f === "coconut") {
+            // heavy, dense whoosh
+            hiss(0.24, 0.11, 0, "lowpass", 420, 1200, 0.8);
+            blip(170, 0.13, "sine", 0.06, 0, 330);
+            return;
+          }
           hiss(0.18, 0.09, 0, "bandpass", 700, 2600, 1.2);
           blip(430, 0.08, "triangle", 0.04, 0, 780);
         },
-        hit(banana) {
-          if (banana) {
+        hit(f) {
+          if (f === "banana") {
             // dull soft thump, no bright wet splat
             hiss(0.12, 0.26, 0, "lowpass", 950, 170, 0.8, 0.003);
             blip(190, 0.17, "sine", 0.17, 0, 62, 0.004);
             hiss(0.06, 0.05, 0.05, "bandpass", 1200, 600, 1.5, 0.002);
+            return;
+          }
+          if (f === "coconut") {
+            // hollow shell crack over a heavy thud
+            hiss(0.06, 0.3, 0, "bandpass", 2400, 900, 2.5, 0.002);
+            blip(320, 0.12, "square", 0.09, 0, 150, 0.002);
+            blip(130, 0.2, "sine", 0.22, 0, 52, 0.004);
             return;
           }
           // wet splat: noise smacking down into a squelch
@@ -1236,8 +1343,12 @@
           // droplets flicking off
           hiss(0.05, 0.07, 0.055, "bandpass", 3500, 1400, 1.8, 0.002);
         },
-        miss(banana) {
-          if (banana) {
+        miss(f) {
+          if (f === "coconut") {
+            hiss(0.12, 0.22, 0, "lowpass", 850, 150, 1);
+            blip(230, 0.16, "square", 0.07, 0, 110, 0.003);
+            blip(110, 0.3, "sine", 0.22, 0, 44);
+          } else if (f === "banana") {
             hiss(0.16, 0.2, 0, "lowpass", 600, 130, 0.9);
             blip(120, 0.24, "sine", 0.2, 0, 48);
           } else {
@@ -1280,21 +1391,36 @@
           blip(185, 0.085, "triangle", 0.2, 0, 95, 0.002);
           blip(1500, 0.02, "square", 0.04, 0, 1000, 0.001);
         },
-        bigThrow(banana) {
-          if (banana) {
+        bigThrow(f) {
+          if (f === "banana") {
             hiss(0.7, 0.12, 0, "lowpass", 170, 700, 1);
             blip(55, 0.6, "sine", 0.14, 0, 95);
+            return;
+          }
+          if (f === "coconut") {
+            // deeper, heavier whoosh
+            hiss(0.8, 0.16, 0, "lowpass", 150, 520, 1);
+            blip(48, 0.7, "sine", 0.18, 0, 80);
             return;
           }
           hiss(0.7, 0.14, 0, "lowpass", 220, 900, 1);
           blip(70, 0.6, "sine", 0.16, 0, 130);
         },
-        bigImpact(banana) {
-          if (banana) {
+        bigImpact(f) {
+          if (f === "banana") {
             // huge soft thud instead of a wet explosion
             hiss(0.85, 0.36, 0, "lowpass", 850, 70, 1);
             blip(70, 0.7, "sine", 0.3, 0, 26);
             hiss(0.14, 0.16, 0, "bandpass", 1500, 450, 1.4);
+            return;
+          }
+          if (f === "coconut") {
+            // shell cracks, then a huge hollow boom
+            hiss(0.2, 0.4, 0, "bandpass", 2600, 600, 2);
+            blip(190, 0.3, "square", 0.14, 0, 60, 0.002);
+            hiss(0.9, 0.4, 0, "lowpass", 1200, 60, 1);
+            blip(58, 0.8, "sine", 0.34, 0, 24);
+            hiss(0.3, 0.18, 0.05, "bandpass", 1800, 700, 1.4);
             return;
           }
           hiss(0.9, 0.4, 0, "lowpass", 1600, 90, 1);
@@ -1415,14 +1541,14 @@
       /* ---------- throw ---------- */
 
       function toss(x, y, w, h, hit) {
-        const banana = fruit === "banana";
-        sfx.throw(banana);
+        const f = fruit;
+        sfx.throw(f);
 
         const sx = w * 0.5 + (Math.random() - 0.5) * 110;
         const sy = h + 60;
 
         const tomato = document.createElement("div");
-        tomato.className = "tomato" + (banana ? " banana" : "");
+        tomato.className = "tomato" + (f === "tomato" ? "" : " " + f);
         tomato.style.left = sx + "px";
         tomato.style.top = sy + "px";
         ammo.appendChild(tomato);
@@ -1447,14 +1573,14 @@
         flight.onfinish = () => {
           if (!tomato.isConnected) return; // reset removed it mid-flight
           tomato.remove();
-          if (hit) impact(x, y, banana);
-          else miss(x, y, banana);
+          if (hit) impact(x, y, f);
+          else miss(x, y, f);
         };
 
-        followTrail(tomato, flight, sx, sy, apexX, apexY, x, y, banana);
+        followTrail(tomato, flight, sx, sy, apexX, apexY, x, y, f);
       }
 
-      function followTrail(tomato, flight, sx, sy, apexX, apexY, x, y, banana) {
+      function followTrail(tomato, flight, sx, sy, apexX, apexY, x, y, f) {
         const apexDX = apexX - sx;
         const apexDY = apexY - sy;
         const endDX = x - sx;
@@ -1488,7 +1614,7 @@
               260 + Math.random() * 160,
               (Math.random() * 2 - 1) * 8,
               10 + Math.random() * 16,
-              banana,
+              f,
             );
           }
           requestAnimationFrame(step);
@@ -1498,20 +1624,20 @@
 
       /* ---------- impact ---------- */
 
-      function impact(x, y, banana) {
+      function impact(x, y, f) {
         if (scoreUp(x, y)) return; // a special sequence took over this hit
-        sfx.hit(banana);
+        sfx.hit(f);
         sfx.score();
         if (snacking) return; // keep the snack animation free of splats
-        splat(x, y, 152, banana);
-        burst(x, y, banana);
+        splat(x, y, 152, f);
+        burst(x, y, f);
         shake();
       }
 
-      function miss(x, y, banana) {
-        sfx.miss(banana);
-        splat(x, y, 152, banana);
-        burst(x, y, banana);
+      function miss(x, y, f) {
+        sfx.miss(f);
+        splat(x, y, 152, f);
+        burst(x, y, f);
         shake();
         score = 0;
         hitsSinceBig = 0;
@@ -1522,14 +1648,14 @@
         missScore();
       }
 
-      function splat(x, y, size, banana) {
+      function splat(x, y, size, f) {
         size = size || 152;
 
         const el = document.createElement("div");
         el.className = "splat";
         el.style.left = x + "px";
         el.style.top = y + "px";
-        el.innerHTML = splatMark(banana);
+        el.innerHTML = splatMark(f);
         splats.appendChild(el);
 
         const svg = el.firstElementChild;
@@ -1563,10 +1689,9 @@
         ).onfinish = () => el.remove();
       }
 
-      function splatMark(banana) {
-        const color = banana
-          ? BANANA_COLORS[(Math.random() * BANANA_COLORS.length) | 0]
-          : SPLAT_COLORS[(Math.random() * SPLAT_COLORS.length) | 0];
+      function splatMark(f) {
+        const cfg = FRUITS[f] || FRUITS.tomato;
+        const color = cfg.colors[(Math.random() * cfg.colors.length) | 0];
         const main = smoothBlob(
           blobPoints(11 + ((Math.random() * 5) | 0), 20, 11, 8),
         );
@@ -1594,7 +1719,7 @@
         <path d="${main}"/>
         ${drops}
       </g>
-      <path d="${core}" fill="${banana ? "#ffe98a" : "#f26a53"}" opacity=".35" transform="translate(${cx},${cy})"/>
+      <path d="${core}" fill="${cfg.core}" opacity=".35" transform="translate(${cx},${cy})"/>
     </svg>`;
       }
 
@@ -1621,7 +1746,7 @@
         return d + "Z";
       }
 
-      function burst(x, y, banana) {
+      function burst(x, y, f) {
         const n = 7 + ((Math.random() * 3) | 0);
         for (let i = 0; i < n; i++) {
           const ang = (i / n) * Math.PI * 2 + Math.random() * 0.5;
@@ -1633,7 +1758,7 @@
             380 + Math.random() * 260,
             Math.cos(ang) * dist,
             Math.sin(ang) * dist * 0.9 + 14,
-            banana,
+            f,
           );
         }
 
@@ -1651,9 +1776,9 @@
         ).onfinish = () => ring.remove();
       }
 
-      function drop(x, y, size, life, dx, dy, banana) {
+      function drop(x, y, size, life, dx, dy, f) {
         const d = document.createElement("div");
-        d.className = "drop" + (banana ? " banana" : "");
+        d.className = "drop" + (f === "banana" || f === "coconut" ? " " + f : "");
         d.style.width = size + "px";
         d.style.height = size + "px";
         d.style.left = x + "px";
@@ -1902,7 +2027,9 @@
 
         bumpScore();
 
-        if (!bananaUnlocked && score >= BANANA_AT) unlockBanana();
+        if (!unlocked.banana && score >= FRUITS.banana.at) unlockFruit("banana");
+        if (!unlocked.coconut && score >= FRUITS.coconut.at)
+          unlockFruit("coconut");
 
         const now = performance.now();
         combo = now - comboAt < 900 ? combo + 1 : 1;
@@ -1972,11 +2099,13 @@
         return false;
       }
 
-      function unlockBanana() {
-        bananaUnlocked = true;
-        bananaBtn.hidden = false;
+      function unlockFruit(key) {
+        const f = FRUITS[key];
+        unlocked[key] = true;
+        const btn = document.querySelector(`[data-fruit="${key}"]`);
+        btn.hidden = false;
         sfx.unlock();
-        bananaBtn.animate(
+        btn.animate(
           [
             { transform: "scale(.4)", opacity: 0 },
             { transform: "scale(1.25)", opacity: 1, offset: 0.55 },
@@ -1989,9 +2118,9 @@
         pop.className = "unlock-pop";
         pop.setAttribute("role", "status");
         pop.innerHTML =
-          '<span class="fruit">🍌</span>' +
-          '<span class="title">BANANA UNLOCKED!</span>' +
-          '<span class="hint">Tap the 🍌 button to throw bananas</span>';
+          `<span class="fruit">${f.emoji}</span>` +
+          `<span class="title">${f.name} UNLOCKED!</span>` +
+          `<span class="hint">Tap the ${f.emoji} button to throw ${f.plural}</span>`;
         document.body.appendChild(pop);
 
         pop.animate(
@@ -2058,14 +2187,14 @@
 
       function bigThrow() {
         busy = true;
-        const banana = fruit === "banana";
-        sfx.bigThrow(banana);
+        const f = fruit;
+        sfx.bigThrow(f);
 
         const cx = stageRect.width / 2;
         const cy = stageRect.height * 0.38;
 
         const big = document.createElement("div");
-        big.className = "tomato big" + (banana ? " banana" : "");
+        big.className = "tomato big" + (f === "tomato" ? "" : " " + f);
         big.style.left = cx + "px";
         big.style.top = cy + "px";
         ammo.appendChild(big);
@@ -2104,15 +2233,15 @@
 
         flight.onfinish = () => {
           big.remove();
-          bigImpact(cx, cy, banana);
+          bigImpact(cx, cy, f);
         };
       }
 
-      function bigImpact(x, y, banana) {
-        sfx.bigImpact(banana);
-        flashScreen(banana);
+      function bigImpact(x, y, f) {
+        sfx.bigImpact(f);
+        flashScreen(f);
         shake(true);
-        splat(x, y, 1400, banana);
+        splat(x, y, 1400, f);
 
         for (let i = 0; i < 30; i++) {
           const ang = Math.random() * Math.PI * 2;
@@ -2124,7 +2253,7 @@
             600 + Math.random() * 500,
             Math.cos(ang) * dist,
             Math.sin(ang) * dist + 40,
-            banana,
+            f,
           );
         }
 
@@ -2142,8 +2271,9 @@
         }, 780);
       }
 
-      function flashScreen(banana) {
-        flashEl.classList.toggle("banana", !!banana);
+      function flashScreen(f) {
+        flashEl.classList.toggle("banana", f === "banana");
+        flashEl.classList.toggle("coconut", f === "coconut");
         flashEl.animate(
           [
             { opacity: 0 },
@@ -2509,16 +2639,23 @@
 
       /* ---------- reset ---------- */
 
-      bananaBtn.addEventListener("click", () => {
-        fruit = fruit === "banana" ? "tomato" : "banana";
-        const on = fruit === "banana";
-        bananaBtn.classList.toggle("on", on);
-        bananaBtn.setAttribute("aria-pressed", String(on));
-        bananaBtn.setAttribute(
-          "aria-label",
-          on ? "Throwing bananas, tap for tomatoes" : "Throw bananas",
-        );
-        sfx.click();
+      document.querySelectorAll("[data-fruit]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const key = btn.dataset.fruit;
+          fruit = fruit === key ? "tomato" : key;
+          document.querySelectorAll("[data-fruit]").forEach((b) => {
+            const on = b.dataset.fruit === fruit;
+            b.classList.toggle("on", on);
+            b.setAttribute("aria-pressed", String(on));
+            b.setAttribute(
+              "aria-label",
+              on
+                ? `Throwing ${FRUITS[b.dataset.fruit].plural}, tap for tomatoes`
+                : `Throw ${FRUITS[b.dataset.fruit].plural}`,
+            );
+          });
+          sfx.click();
+        });
       });
 
       resetBtn.addEventListener("click", () => {
