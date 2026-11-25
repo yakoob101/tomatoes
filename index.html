@@ -681,6 +681,54 @@
         font-weight: 700;
         color: #8a6a4c;
       }
+
+      #dev {
+        position: fixed;
+        left: 16px;
+        bottom: 16px;
+        z-index: 80;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.9);
+        border: 2px solid #fff;
+        box-shadow: 0 10px 26px rgba(150, 100, 50, 0.2);
+        font-weight: 700;
+        font-size: 14px;
+        color: #8a6a4c;
+      }
+      #dev[hidden] {
+        display: none;
+      }
+      #dev input {
+        width: 76px;
+        font: inherit;
+        font-weight: 800;
+        color: #4b2b18;
+        padding: 6px 8px;
+        border: 2px solid #f0dcc0;
+        border-radius: 10px;
+        background: #fffdf6;
+      }
+      #dev button {
+        font: inherit;
+        font-weight: 800;
+        color: #8a6a4c;
+        cursor: pointer;
+        background: rgba(255, 255, 255, 0.6);
+        border: 2px solid #fff;
+        border-radius: 999px;
+        padding: 6px 14px;
+      }
+      #dev button:hover {
+        color: #b5281d;
+        background: #fff;
+      }
+      #dev button:active {
+        transform: scale(0.96);
+      }
     </style>
   </head>
   <body>
@@ -1086,6 +1134,12 @@
     <div id="pops"></div>
 
     <div id="flash"></div>
+
+    <div id="dev" hidden>
+      <label for="dev-count">Tomatoes</label>
+      <input id="dev-count" type="number" min="0" step="1" inputmode="numeric" />
+      <button type="button" id="dev-set">Set</button>
+    </div>
 
     <script>
       const stage = document.getElementById("stage");
@@ -2099,7 +2153,7 @@
         return false;
       }
 
-      function unlockFruit(key) {
+      function unlockFruit(key, silent) {
         const f = FRUITS[key];
         unlocked[key] = true;
         const btn = document.querySelector(`[data-fruit="${key}"]`);
@@ -2113,6 +2167,7 @@
           ],
           { duration: 520, easing: "ease-out" },
         );
+        if (silent) return;
 
         const pop = document.createElement("div");
         pop.className = "unlock-pop";
@@ -2676,6 +2731,63 @@
         ammo.replaceChildren();
 
         bumpScore();
+      });
+
+      /* ---------- dev mode (type "dev") ---------- */
+
+      const devPanel = document.getElementById("dev");
+      const devInput = document.getElementById("dev-count");
+
+      function setTomatoCount(n) {
+        score = Math.max(0, Math.floor(n) || 0);
+        scoreEl.textContent = score;
+        // unlock quietly, so jumping the count doesn't stack banners
+        for (const key in unlocked) {
+          if (!unlocked[key] && score >= FRUITS[key].at) unlockFruit(key, true);
+        }
+        bumpScore();
+      }
+
+      function toggleDev() {
+        devPanel.hidden = !devPanel.hidden;
+        if (devPanel.hidden) {
+          devInput.blur();
+          return;
+        }
+        devInput.value = score;
+        devInput.focus();
+        devInput.select();
+      }
+
+      let devTyped = "";
+      window.addEventListener("keydown", (e) => {
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        const tag = e.target && e.target.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+        if (e.key.length !== 1) return;
+        devTyped = (devTyped + e.key.toLowerCase()).slice(-3);
+        if (devTyped === "dev") {
+          devTyped = "";
+          e.preventDefault(); // keep the last letter out of the input we just focused
+          toggleDev();
+        }
+      });
+
+      document.getElementById("dev-set").addEventListener("click", () => {
+        setTomatoCount(Number(devInput.value));
+        sfx.click();
+        devInput.select();
+      });
+
+      devInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          setTomatoCount(Number(devInput.value));
+          sfx.click();
+          devInput.select();
+        } else if (e.key === "Escape") {
+          devPanel.hidden = true;
+          devInput.blur();
+        }
       });
 
       /* ---------- skin tone ---------- */
