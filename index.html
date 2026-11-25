@@ -688,8 +688,10 @@
         bottom: 16px;
         z-index: 80;
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: 8px;
+        max-width: calc(100vw - 32px);
         padding: 10px 14px;
         border-radius: 16px;
         background: rgba(255, 255, 255, 0.9);
@@ -1139,6 +1141,7 @@
       <label for="dev-count">Tomatoes</label>
       <input id="dev-count" type="number" min="0" step="1" inputmode="numeric" />
       <button type="button" id="dev-set">Set</button>
+      <button type="button" id="dev-giant">Giant throw</button>
     </div>
 
     <script>
@@ -2777,6 +2780,11 @@
         setTomatoCount(Number(devInput.value));
         sfx.click();
         devInput.select();
+      });
+
+      document.getElementById("dev-giant").addEventListener("click", () => {
+        if (busy) return; // let the current sequence finish first
+        bigThrow();
       });
 
       devInput.addEventListener("keydown", (e) => {
